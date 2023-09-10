@@ -50,7 +50,7 @@ pub fn load_headers(_item: TokenStream) -> TokenStream {
     // Do this iteratively. In case includes have other includes,
     // until all `include` are resolved, while keeping track of possible
     // cross referencing. Perform DFS and parse the terminal nodes
-    // first. Current path should always be inside the 
+    // first. Include files should always be in /common or .. or ../common
     let mut it = re.captures_iter(&s);
     let mut files_seen: Vec<String> = vec![];
     while let Some(caps) = it.next() {
@@ -69,6 +69,5 @@ fn get_result(command: &mut Command) -> String {
 }
 
 fn process_file(file_name: &str, file_dir: &mut Command, f_stack: &mut Vec<String>) {
-    let s = std::fs::read_to_string(file_name);
 
 }
