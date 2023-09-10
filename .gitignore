@@ -2,3 +2,6 @@
 *.lock
 *.struct
 *.spec
+*.lmd
+proc_macro_lib/target
+decl_macro_lib/target

@@ -8,4 +8,7 @@ edition = "2021"
 proc-macro = true
 
 [dependencies]
+regex = "1.9.5"
 syn = { version = "*", features = ["extra-traits"] }
+include_parser = { path = "include_parser" }
+

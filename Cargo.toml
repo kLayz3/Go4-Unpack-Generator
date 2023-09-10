@@ -8,4 +8,3 @@ edition = "2021"
 [dependencies]
 proc_macro_lib = { path = "proc_macro_lib" }
 decl_macro_lib = { path = "decl_macro_lib" }
-regex = "1.9.5"
