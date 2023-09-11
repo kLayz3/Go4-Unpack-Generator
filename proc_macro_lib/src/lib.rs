@@ -13,7 +13,7 @@ macro_rules! exec_command {
             )*
             .output()
             .unwrap()
-            .stdout).unwrap();
+            .stdout).unwrap()
     };
     () => {};
 }

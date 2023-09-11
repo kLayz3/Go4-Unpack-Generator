@@ -3,8 +3,7 @@ extern crate decl_macro_lib;
 use proc_macro_lib::load_spec_file;
 use proc_macro_lib::load_headers;
 
-use decl_macro_lib::formatt;
-use decl_macro_lib::munch;
+use decl_macro_lib::*;
 
 #[allow(unused_imports)] use std::fs::File;
 #[allow(unused_imports)] use std::io::{self, prelude::*, BufReader};
@@ -21,7 +20,17 @@ fn main() -> std::io::Result<()> {
     load_headers!();
     load_spec_file!();
     
-    println!("Hello, world!");
-
+    {
+        munch! {
+            BASIC() {
+                U32 x = MATCH(0xfefefefe); 
+                U32 y {
+                    0;12 => 0x1;
+                    13;25 => 0xfea;
+                    ENCODE(26;31 => id);
+                };
+            };
+        }
+    }
     Ok(())
 }
