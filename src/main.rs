@@ -20,17 +20,5 @@ fn main() -> std::io::Result<()> {
     load_headers!();
     load_spec_file!();
     
-    {
-        munch! {
-            BASIC() {
-                U32 x = MATCH(0xfefefefe); 
-                U32 y {
-                    0;12 => 0x1;
-                    13;25 => 0xfea;
-                    ENCODE(26;31 => id);
-                };
-            };
-        }
-    }
     Ok(())
 }

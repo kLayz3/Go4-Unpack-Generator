@@ -25,12 +25,17 @@ macro_rules! munch {
 
         // Create fields:
         __s += &munch_members!( $($body)* );
-        __s += &formatt!(1; "unordered_map<const char*, Go4UnpackPtr> m;\n");
+        __s += &formatt!(1; "unordered_map<const char*, Go4UnpackPtr> m;\n\n");
 
         // Create a default ctor
-        __s += "\n";
-        __s += &formatt!(1; "{}() = default;\n", stringify!($name));
+        __s += &formatt!(1; "{}() = default;\n\n", stringify!($name));
         
+        // Create the static __min_size() 
+        __s += &formatt!(1; "static constexpr size_t __min_size() {{\n");
+        __s += &formatt!(2; "size_t struct_size = 0;\n");
+        __s += &munch_size!( $($body)* );
+        __s += &formatt!(2; "return struct_size;\n");
+        __s += &formatt!(1; "}}\n");
         // Create __check_event() method: 
         __s += "\n";
         __s += &formatt!(1; "void __check_event() {{\n");
@@ -40,7 +45,7 @@ macro_rules! munch {
         __s += &formatt!(1; "}}\n\n");
 
         // Create __fill() method:
-        __s += &formatt!(1; "void __fill(uint8_t* __event_handle, size_t& bytes_read) {{\n");
+        __s += &formatt!(1; "void __fill(uint8_t* __event_handle, size_t& bytes_available, size_t& bytes_read) {{\n");
         __s += &formatt!(2; "bytes_read = 0;\n");
         __s += &formatt!(2; "bytes_read_sub = 0;\n");
         __s += &munch_fill!( $($body)* );
@@ -56,6 +61,8 @@ macro_rules! munch {
         __s += &munch_encode!( $($body)* );
         __s += &formatt!(1; "}}\n\n");
         __s += &format!("}}\n");
+
+        // Create a __min_size() method, which checks how much size does the struct have
 
         __s += "\n";
 
@@ -75,17 +82,12 @@ macro_rules! munch_generics {
     }};
 }
 
-const MAX_DYN_DEFAULT: i32 = 100;
+#[allow(dead_code)] const MAX_DYN_DEFAULT: usize = 100;
 
 #[macro_export]
 macro_rules! munch_members {
-    // Ignore if encountering a MEMBER annotation:
-    ( @MEMBER( $($_t:tt)* ) $($other:tt)* ) => {
-        munch_members!( $($other)*)
-    };
-
     // Expand fields defined in a `for`  
-    ( for ( $loop_left:tt <= $loop_index:ident < $loop_right:expr ) { $($loop_body:tt)* } $($other_fields:tt)* ) => {{
+    ( @for ( $loop_left:tt <= $loop_index:ident < $loop_right:expr ) { $($loop_body:tt)* } $($other_fields:tt)* ) => {{
         let mut __s = String::new();
         for i in $loop_left .. $loop_right {
             __s += &format!("#define {} {}\n", stringify!($loop_index), i);
@@ -96,11 +98,11 @@ macro_rules! munch_members {
         __s
     }};
     
-    // Dynamic members with capacity $max_dyn hold an array. 
+    // Dynamic fields with capacity $max_dyn hold an array. Cannot be in a `for`. 
     // Possible for structure fields without {} block or primitives with {} block
-    ( @dyn$([max = $max_dyn:expr])? $field_type:ident $(($($field_generic:expr),*))? $field_name:ident ; $($other_fields:tt)* ) => {{
+    ( dyn! $([max = $max_dyn:expr])? $field_type:ident $(($($field_generic:expr),*))? $field_name:ident ; $($other_fields:tt)* ) => {{
         let mut __s = String::new();
-        __s += &format!("int __N_{};\n", stringify!($field_name));
+        __s += &format!("int N_{};\n", stringify!($field_name));
         let mut generics_added = 0;
         __s += &formatt!(1; "__{}<", stringify!($field_type));
         $(
@@ -111,18 +113,18 @@ macro_rules! munch_members {
             __s = __s[0.. __s.len()-1].to_string();
         }
         __s += &format!("> {}", stringify!($field_name));
-        let max_dyn_supplied: bool = false;
-        $( __s += &format!("[{}]", stringify!($max_dyn)); max_dyn_supplied = true; )?
-        if !max_dyn_supplied {  
-            __s += &format!("[{}]", MAX_DYN_DEFAULT);
-        }
-        __s += ";\n";
+        let mut max_dyn: usize = MAX_DYN_DEFAULT;
+        $( max_dyn = $max_dyn as usize; )?
+        __s += &format!("[{}];\n", max_dyn);
         __s += &munch_members!( $([[ $loop_index ]])? $( $other_fields )*);
         __s
     }};
-
-    ( @dyn$([max = $max_dyn:expr])? $field_type:ident $field_name:ident { $($condition_body:tt)* } ; $($other_fields:tt)* ) => {
-        munch_members!( @dyn$([max = $max_dyn])? $field_type:ident $field_name:ident ; $($other_fields:tt)* ) 
+    // Next two rules expand to the rule above.
+    ( dyn! $([max = $max_dyn:expr])? $field_type:ident $field_name:ident { $($condition_body:tt)* } ; $($other_fields:tt)* ) => {
+        munch_members!( dyn! $([max = $max_dyn])? $field_type:ident $field_name:ident ; $($other_fields:tt)* ) 
+    };
+    ( dyn! $([max = $max_dyn:expr])? $field_type:ident $field_name:ident = MATCH($field_val:expr) ; $($other_fields:tt)* ) => {
+        munch_members!( dyn! $([max = $max_dyn])? $field_type:ident $field_name:ident ; $($other_fields:tt)* ) 
     };
 
     // Fields with `MATCH` cannot be a generic or hold a {} block.
@@ -168,6 +170,55 @@ macro_rules! munch_members {
         String::new()
     }};
 }
+#[macro_export]
+macro_rules! munch_size {
+    ( @for ( $loop_left:tt <= $loop_index:ident < $loop_right:expr ) { $($loop_body:tt)* } $($other_fields:tt)* ) => {{
+        let mut __s = String::new();
+        for i = $loop_left .. $loop_right {
+            __s += &munch_size!( $($loop_body)*);
+        }
+        __s += &munch_size!( $($other_fields)*);
+        __s
+    }};
+    // Dyn objects have minimal size 0, skip them
+    ( dyn! $([max = $max_dyn:expr])? $field_type:ident $field_name:ident { $($condition_body:tt)* } ; $($other_fields:tt)* ) => {
+        munch_size!( $($other_fields:tt)* ) 
+    };
+    ( dyn! $([max = $max_dyn:expr])? $field_type:ident $field_name:ident = MATCH($field_val:expr) ; $($other_fields:tt)* ) => {
+        munch_size!( $($other_fields:tt)* ) 
+    };
+    ( dyn! $([max = $max_dyn:expr])? $field_type:ident $(($($field_generic:expr),*))? $field_name:ident ; $($other_fields:tt)* ) => {
+        munch_size!( $($other_fields:tt)* ) 
+    };
+
+    ( $field_type:ident $field_name:ident $( { $($condition_body:tt)* } )? ; $($other_fields:tt)* ) => {{
+        let mut __s = String::new();
+        __s += &formatt!(2; "struct_size += __{}<>::__min_size();\n", stringify!($field_type));
+        __s += &munch_size!( $($other_fields)* );
+        __s
+    }};
+
+    ( $field_type:ident ( $($field_generic:expr),* ) $field_name:ident ; $($other_fields:tt)* ) => {{ 
+        let mut __s = String::new();
+        __s += &formatt!(2; "struct_size += __{}<", stringify!($field_type));
+        let mut generics_added = 0;
+        $(
+        __s += &format!("{},", stringify!($field_generic)); 
+        generics_added += 1;
+        )*
+        if generics_added > 0 { // remove last comma
+            __s = __s[0.. __s.len()-1].to_string();
+        }
+
+        __s += &format!(">::__min_size();\n");
+        __s += &munch_size!( $($other_fields)* );
+        __s
+    }};
+
+    () => {{
+        String::new()
+    }};
+}
 
 #[macro_export] 
 macro_rules! munch_condition {
@@ -176,19 +227,23 @@ macro_rules! munch_condition {
     ( $name:ident @MEMBER( $($__tt:tt)* ) $($rest:tt)*) => {
         munch_condition!( $name $($rest)*)  
     };
-    // Dynamic objects don't participate in data validity checks
-    ( $name:ident @dyn$([max = $max_dyn:expr])? $field_type:ident $(($($field_generic:expr),*))? $field_name:ident ; $($other_fields:tt)* ) => {
-        munch_condition!( $name $($rest)*)
+    // Dynamic objects don't participate in __check_event()
+    ( $name:ident dyn! $([max = $max_dyn:expr])? $field_type:ident $(($($field_generic:expr),*))? $field_name:ident ; $($other_fields:tt)* ) => {
+        munch_condition!( $name $($other_fields)*)
     };
-    ( @dyn$([max = $max_dyn:expr])? $field_type:ident $field_name:ident { $($condition_body:tt)* } ; $($other_fields:tt)* ) => {
-        munch_condition!( $name $($rest)*)
+    ( $name:ident dyn! $([max = $max_dyn:expr])? $field_type:ident $field_name:ident { $($condition_body:tt)* } ; $($other_fields:tt)* ) => {
+        munch_condition!( $name $($other_fields)*)
     };
+    ( $name:ident dyn! $([max = $max_dyn:expr])? $field_type:ident $field_name:ident = MATCH($field_val:expr) ; $($other_fields:tt)* ) => {
+        munch_condition!( $name $($other_fields)*)
+    };
+
     ( $name:ident $([[$loop_index:expr]])? ) => {{
         String::new()
     }};
 
      // If encountering a for loop, repeat the body:
-    ( $name:ident for($loop_left:tt <= $loop_index:ident < $loop_right:expr) { $($loop_body:tt)* } $($other_fields:tt)* ) => {{
+    ( $name:ident @for($loop_left:tt <= $loop_index:ident < $loop_right:expr) { $($loop_body:tt)* } $($other_fields:tt)* ) => {{
         let mut __s = String::new();
         for i in $loop_left..$loop_right {
             __s += &format!("#define {} {}\n", stringify!($loop_index), i);
@@ -320,12 +375,14 @@ macro_rules! munch_condition_inside {
 #[macro_export]
 macro_rules! munch_encode {
     // This macro will search for all ENCODE statements and create a __new() method
+    // Which creates appropriate pointers to selected data words
+
     // Ignore MEMBER annotations. `@MEMBER` cannot be in `for` loop
     ( @MEMBER( $($_t:tt)* ) $($other:tt)* ) => {
         munch_encode!( $($other)*)
     };
      // If encountering a for loop, repeat the body:
-    ( for($loop_left:tt <= $loop_index:ident < $loop_right:expr) { $($loop_body:tt)* } $($other_fields:tt)* ) => {{
+    ( @for($loop_left:tt <= $loop_index:ident < $loop_right:expr) { $($loop_body:tt)* } $($other_fields:tt)* ) => {{
         let mut __s = String::new();
         for i in $loop_left..$loop_right {
             __s += &format!("#define {} {}\n", stringify!($loop_index), i);
@@ -346,18 +403,36 @@ macro_rules! munch_encode {
         __s += &munch_encode!( $([[$loop_index]])? $($other_fields)*);
         __s
     }};
-
+    // MATCH'ed fields also can't encode anything.
     ( $([[$loop_index:expr]])? 
      $field_type:ident $field_name:ident = MATCH($match_val:expr); $($other_fields:tt)* ) => {
         munch_encode!($([[$loop_index]])? $field_type $field_name ; $($other_fields)*)
     };
-
+    
     // Go inside the {} body where ENCODE's could live. Pass `$field_name => ` as a tag
     ( $([[$loop_index:expr]])? 
      $field_type:ident $field_name:ident { $($inside:tt)* } ; $($other_fields:tt)*) => {{
         let mut __s = String::new();
         __s += &munch_encode_inside!( $field_name $([[$loop_index]])? => $($inside)* );
         __s += &munch_encode!( $([[$loop_index]])? $($other_fields)* );
+        __s
+    }};
+
+    // dyn objects without {} block don't encode anything new.
+    ( dyn! $([max = $max_dyn:expr])? $field_type:ident $(($($field_generic:expr),*))? $field_name:ident ; $($other_fields:tt)* ) => {
+        munch_encode!( $($other_fields)* )
+    };
+    ( dyn! $([max = $max_dyn:expr])? $field_type:ident $field_name:ident = MATCH($field_val:expr) ; $($other_fields:tt)* ) => {
+        munch_encode!( $($other_fields)* )
+    };
+    // Once found, go inside the {} block for `dyn!` and parse all encodes.
+    ( dyn! $([max = $max_dyn:expr])? $field_type:ident $field_name:ident { $($inside:tt)* } ; $($other_fields:tt)* ) => {{
+        let mut __s = String::new();
+        let mut max_dyn: usize = MAX_DYN_DEFAULT;
+        $( max_dyn = $max_dyn as usize; )?
+        for(i = 0;)
+        __s += &munch_encode_inside_dyn!( $field_name $(, $max_dyn)? => $($inside)* );
+        __s += &munch_encode!( $($other_fields)*);
         __s
     }};
 
@@ -378,12 +453,11 @@ macro_rules! munch_encode_inside {
         __s += &formatt!(3; "Go4UnpackPtr _ptr({}, {}, _p);\n", stringify!($left_bound), stringify!($right_bound));
         __s += &formatt!(3;"m.emplace(std::make_pair(\"{}", stringify!($encode_id));
         $(__s += &format!("[{}]",stringify!($encode_index)); )?
-        __s += "\", _p));\n";
+        __s += "\", _ptr));\n";
         __s += &formatt!(2; "}}\n");
         __s += &munch_encode_inside!( $field_name $([[$loop_index]])? => $($rest)*);
         __s
     }};
-    
     // Ignore condition statements (1,2)
     ( $field_name:ident $([[$loop_index:expr]])? =>
         $(@$condition_name:ident)? $left_bound:expr ; $right_bound:expr => $assert_val:expr ; $($rest:tt)*) => {
@@ -399,14 +473,38 @@ macro_rules! munch_encode_inside {
     }};
 }
 
+#[macro_export]
+macro_rules! munch_encode_inside_dyn {
+    // Dynamic Fields:
+    ( $field_name:ident $(, $max_dyn:expr )? =>
+     ENCODE($left_bound:expr ; $right_bound:expr => $encode_id:ident ) ; $($rest:tt)* ) => {{
+        let mut __s = String::new();
+        let mut max_dyn: usize = MAX_DYN_DEFAULT;
+        $( max_dyn = $max_dyn as usize; )?
+         __s += &formatt!(2; "for(int i = 0; i < {}; ++i) {{\n", max_dyn);
+        __s += &formatt!(3;"void* _p = (void*)&{}[i];\n", stringify!($field_name));
+        __s += &formatt!(3; "Go4UnpackPtr _ptr({}, {}, _p);\n", stringify!($left_bound), stringify!($right_bound));
+        __s += &formatt!(3;"m.emplace(std::make_pair(\"{}[i]\", _ptr));\n", stringify!($encode_id));
+        __s += &formatt!(2; "}}\n");
+        __s += &munch_encode_inside!( $field_name $(, $max_dyn )? => $($rest)*);
+        __s
+    }};
+    ( $field_name:ident $(, $max_dyn:expr )? =>
+        $(@$condition_name:ident)? $left_bound:expr ; $right_bound:expr => $assert_val:expr ; $($rest:tt)*) => {
+        munch_encode_inside!( $field_name $(, $max_dyn )? => $($rest)*)
+    }; 
+    ( $field_name:ident $(, $max_dyn:expr )? =>
+     $(@$condition_name:ident)? $bit:expr => $assert_val:expr ; $($rest:tt)* ) => { 
+        munch_encode_inside!( $field_name $(, $max_dyn )? => $($rest)*)
+    };
+    ( $field_name:ident $(, $max_dyn:expr )? => ) => {{
+        String::new()
+    }};
+}
+
 #[macro_export] 
 macro_rules! munch_fill { 
-    // Ignore if encountering a MEMBER annotation:
-    ( @MEMBER( $($_t:tt)* ) $($other:tt)* ) => {
-        munch_fill!( $($other)*)
-    };
-
-    ( for ( $loop_left:tt <= $loop_index:ident < $loop_right:expr ) { $($loop_body:tt)* } $($other_fields:tt)* ) => {{
+    ( @for ( $loop_left:tt <= $loop_index:ident < $loop_right:expr ) { $($loop_body:tt)* } $($other_fields:tt)* ) => {{
         let mut __s = String::new();
         for i in $loop_left .. $loop_right {
             __s += &format!("#define {} {}\n", stringify!($loop_index), i);
@@ -427,8 +525,8 @@ macro_rules! munch_fill {
         __s += &formatt!(2;"bytes_read += bytes_read_sub;\n\n");
         __s += &munch_fill!( $($other_fields)*);
         __s
-    }};
-
+    }}; 
+    // Following three rules expand to the rule above:
     ( $([[ $loop_index:expr ]])? $field_type:ident ( $($field_generic:expr),* ) $field_name:ident ; $($other_fields:tt)* ) => {
         munch_fill!( $([[$loop_index]])? $field_type $field_name ; $($other_fields)* )
     };
@@ -438,6 +536,20 @@ macro_rules! munch_fill {
     ( $([[ $loop_index:expr ]])? $field_type:ident $field_name:ident = MATCH($field_val:expr) ; $($other_fields:tt)* ) => {
         munch_fill!( $([[$loop_index]])? $field_type $field_name ; $($other_fields)* )
     };
+    
+    // dyn! fields keep filling the array until either array is full, buffer is over or condition
+    // is violated.
+    ( dyn! $([max = $max_dyn:expr])? $field_type:ident $(($($field_generic:expr),*))? $field_name:ident ; $($other_fields:tt)* ) => {{
+        let mut __s = String::new();
+    }};
+    ( dyn! $([max = $max_dyn:expr])? $field_type:ident $field_name:ident { $($condition_body:tt)* } ; $($other_fields:tt)* ) => {
+        munch_condition!( $name $($other_fields)*)
+    };
+    ( dyn! $([max = $max_dyn:expr])? $field_type:ident $field_name:ident = MATCH($field_val:expr) ; $($other_fields:tt)* ) => {
+        munch_condition!( $name $($other_fields)*)
+    };
+
+    
 
     ( $([[ $loop_index:expr ]])? ) => {{
         String::new()

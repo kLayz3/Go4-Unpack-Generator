@@ -1,0 +1,111 @@
+#ifndef GO4_UNPACK_STRUCT_COMMON
+#define GO4_UNPACK_STRUCT_COMMON
+
+template<typename _T = void>
+struct __D64 {
+	uint64_t x;
+	__D64() = default;
+	static constexpr size_t __min_size() {
+		return N * sizeof(uint64_t);
+	}
+	bool __check_event() {return true;}
+	void __new() {}
+	size_t __fill(uint8_t* __event_handle, size_t& bytes_available, size_t& bytes_read) {
+		bytes_read = sizeof(uint64_t);
+		memcpy((void*)__event_handle, this, bytes_read);
+		bytes_available -= bytes_read;
+	}
+};
+// todo!
+// copy and write it for __D32, __D16, __D8
+
+
+// Container for MEMBER ptr's
+class Go4UnpackPtr {
+	uint32_t* p;
+	uint16_t l;
+	uint16_t h;
+public:
+	bool has_data;
+
+	Go4UnpackPtr(void* p, uint16_t l, uint16_t h)  : p((uint32_t*)p), l(l), h(h), has_data(0) {}
+	uint32_t operator*() {
+		auto mask = (uint32_t)( (1ull << (h-l+1)) - 1);
+		auto word = *p >> l;
+		return mask & word;
+	}
+}
+
+// --------------64 bit ----------------//
+template<size_t _N = 1, typename _T = void>
+using __u64      = __D64<_N,_T>;
+template<size_t _N = 1, typename _T = void>
+using __i64      = __D64<_N,_T>;
+template<size_t _N = 1, typename _T = void>
+using __U64      = __D64<_N,_T>;
+template<size_t _N = 1, typename _T = void>
+using __I64      = __D64<_N,_T>;
+template<size_t _N = 1, typename _T = void>
+using __uint64_t = __D64<_N,_T>;
+template<size_t _N = 1, typename _T = void>
+using __int64_t = __D64<_N,_T>;
+template<size_t _N = 1, typename _T = void>
+using __UInt64_t = __D64<_N,_T>;
+template<size_t _N = 1, typename _T = void>
+using __Int64_t = __D64<_N,_T>;
+
+// --------------32 bit ----------------//
+template<size_t _N = 1, typename _T = void>
+using __u32      = __D32<_N,_T>;
+template<size_t _N = 1, typename _T = void>
+using __i32      = __D32<_N,_T>;
+template<size_t _N = 1, typename _T = void>
+using __U32      = __D32<_N,_T>;
+template<size_t _N = 1, typename _T = void>
+using __I32      = __D32<_N,_T>;
+template<size_t _N = 1, typename _T = void>
+using __uint32_t = __D32<_N,_T>;
+template<size_t _N = 1, typename _T = void>
+using __int32_t = __D32<_N,_T>;
+template<size_t _N = 1, typename _T = void>
+using __UInt32_t = __D32<_N,_T>;
+template<size_t _N = 1, typename _T = void>
+using __Int32_t = __D32<_N,_T>;
+
+// --------------16 bit ----------------//
+template<size_t _N = 1, typename _T = void>
+using __u16      = __D16<_N,_T>;
+template<size_t _N = 1, typename _T = void>
+using __i16      = __D16<_N,_T>;
+template<size_t _N = 1, typename _T = void>
+using __U16      = __D16<_N,_T>;
+template<size_t _N = 1, typename _T = void>
+using __I16      = __D16<_N,_T>;
+template<size_t _N = 1, typename _T = void>
+using __uint16_t = __D16<_N,_T>;
+template<size_t _N = 1, typename _T = void>
+using __int16_t = __D16<_N,_T>;
+template<size_t _N = 1, typename _T = void>
+using __UInt16_t = __D16<_N,_T>;
+template<size_t _N = 1, typename _T = void>
+using __Int16_t = __D16<_N,_T>;
+
+// --------------8 bit ----------------//
+template<size_t _N = 1, typename _T = void>
+using __u8      = __D8<_N,_T>;
+template<size_t _N = 1, typename _T = void>
+using __i8      = __D8<_N,_T>;
+template<size_t _N = 1, typename _T = void>
+using __U8      = __D8<_N,_T>;
+template<size_t _N = 1, typename _T = void>
+using __I8      = __D8<_N,_T>;
+template<size_t _N = 1, typename _T = void>
+using __uint8_t = __D8<_N,_T>;
+template<size_t _N = 1, typename _T = void>
+using __int8_t = __D8<_N,_T>;
+template<size_t _N = 1, typename _T = void>
+using __UInt8_t = __D8<_N,_T>;
+template<size_t _N = 1, typename _T = void>
+using __Int8_t = __D8<_N,_T>;
+
+#endif
