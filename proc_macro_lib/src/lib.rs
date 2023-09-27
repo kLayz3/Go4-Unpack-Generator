@@ -67,7 +67,7 @@ pub fn load_headers(_item: TokenStream) -> TokenStream {
 fn get_result(command: &mut Command) -> String {
     String::from_utf8(command.output().unwrap().stdout).unwrap()
 }
-
+#[allow(unused_variables)]
 fn process_file(file_name: &str, file_dir: &mut Command, f_stack: &mut Vec<String>) {
 
 }

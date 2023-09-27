@@ -5,3 +5,4 @@
 *.lmd
 proc_macro_lib/target
 decl_macro_lib/target
+info_for_me.md

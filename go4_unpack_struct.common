@@ -6,35 +6,38 @@ struct __D64 {
 	uint64_t x;
 	__D64() = default;
 	static constexpr size_t __min_size() {
-		return N * sizeof(uint64_t);
+		return sizeof(uint64_t);
 	}
-	bool __check_event() {return true;}
-	void __new() {}
+	inline bool __check_event() {return true;}
+	inline void __new() {}
+	void __clear() noexcept {
+		x = 0;
+	}
+
 	size_t __fill(uint8_t* __event_handle, size_t& bytes_available, size_t& bytes_read) {
+		if(__min_size() > bytes_available) throw std::runtime_error("Subevent boundary reached. Cannot read anymore.");
 		bytes_read = sizeof(uint64_t);
-		memcpy((void*)__event_handle, this, bytes_read);
+		x = *(uint64_t*)__event_handle;
 		bytes_available -= bytes_read;
 	}
 };
+
 // todo!
 // copy and write it for __D32, __D16, __D8
 
 
 // Container for MEMBER ptr's
+template<uint8_t l, uint8_t h>
 class Go4UnpackPtr {
 	uint32_t* p;
-	uint16_t l;
-	uint16_t h;
+	static constexpr uint32_t mask = (uint32_t)( (1ull << (h-l+1)) - 1);
 public:
 	bool has_data;
-
-	Go4UnpackPtr(void* p, uint16_t l, uint16_t h)  : p((uint32_t*)p), l(l), h(h), has_data(0) {}
-	uint32_t operator*() {
-		auto mask = (uint32_t)( (1ull << (h-l+1)) - 1);
-		auto word = *p >> l;
-		return mask & word;
+	Go4UnpackPtr(void* p)  : p((uint32_t*)p), has_data(0) {}
+	uint32_t operator*() noexcept {
+		return mask & (*p >> l);
 	}
-}
+};
 
 // --------------64 bit ----------------//
 template<size_t _N = 1, typename _T = void>
