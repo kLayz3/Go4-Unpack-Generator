@@ -1,9 +1,9 @@
 extern crate proc_macro;
 
 use proc_macro::TokenStream;
+/*
 use regex::Regex;
 use std::process::Command;
-
 macro_rules! exec_command {
     ($com_name: ident $($arg:tt)*) => {
         String::from_utf8(
@@ -17,19 +17,21 @@ macro_rules! exec_command {
     };
     () => {};
 }
+*/
 
 #[proc_macro]
 pub fn load_spec_file(_item: TokenStream) -> TokenStream {
     let s =  std::fs::read_to_string("event.spec").unwrap();
     println!("Parsing structure: {}", s);
-    let mut head: TokenStream = "munch!".parse().unwrap();
+    let mut head: TokenStream = "parse_spec_file!".parse().unwrap();
     let tail: String = "(".to_owned() + &s + ")";
     head.extend(tail.parse::<TokenStream>().unwrap());
     head
 }
+/*
 #[proc_macro]
 pub fn load_headers(_item: TokenStream) -> TokenStream {
-    let mut head: TokenStream = "munch!()".parse().unwrap();
+    let head: TokenStream = "munch!()".parse().unwrap();
 
     let re = Regex::new(r##"^#include[ \t\n]+"([\w\-/\.]+)"$"##).unwrap(); 
     let s = std::fs::read_to_string("event.spec").unwrap();
@@ -71,3 +73,4 @@ fn get_result(command: &mut Command) -> String {
 fn process_file(file_name: &str, file_dir: &mut Command, f_stack: &mut Vec<String>) {
 
 }
+*/

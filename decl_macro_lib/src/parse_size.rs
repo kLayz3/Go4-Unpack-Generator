@@ -8,37 +8,32 @@ macro_rules! munch_size {
         __s += &munch_size!(@$($other_fields)*);
         __s
     }};
-    // Dyn objects have minimal size 0, skip them
+    // Dynamic objects have minimal size 0; aren't included
     (@ dyn! $([max = $max_dyn:expr])? $field_type:ident $field_name:ident { $($condition_body:tt)* } ; $($other_fields:tt)* ) => {
         munch_size!(@$($other_fields:tt)* ) 
     };
     (@ dyn! $([max = $max_dyn:expr])? $field_type:ident $field_name:ident = MATCH($field_val:expr) ; $($other_fields:tt)* ) => {
         munch_size!(@$($other_fields:tt)* ) 
     };
-    (@ dyn! $([max = $max_dyn:expr])? $field_type:ident $(($($field_generic:expr),*))? $field_name:ident ; $($other_fields:tt)* ) => {
+    (@ dyn! $([max = $max_dyn:expr])? $field_name:ident = $field_type:ident ( $($field_generic:expr),* ) ; $($other_fields:tt)* ) => {
         munch_size!(@$($other_fields:tt)* ) 
     };
-
+     
+    (@ $field_type:ident $field_name:ident = MATCH($field_val:expr) ; $($other_fields:tt)* ) => {
+        munch_size!(@ $field_type $field_name ; $($other_fields)*)
+    };
     (@ $field_type:ident $field_name:ident $( { $($condition_body:tt)* } )? ; $($other_fields:tt)* ) => {{
         let mut __s = String::new();
-        __s += &formatt!(2; "struct_size += __{}<>::__min_size();\n", stringify!($field_type));
+        __s += &formatt!(2; "struct_size += __{}<>::min_size();\n", stringify!($field_type));
         __s += &munch_size!(@$($other_fields)* );
         __s
     }};
 
-    (@ $field_type:ident ( $($field_generic:expr),* ) $field_name:ident ; $($other_fields:tt)* ) => {{ 
+    (@ $field_name:ident =  $field_type:ident ( $($field_generic:expr),* ) ; $($other_fields:tt)* ) => {{ 
         let mut __s = String::new();
         __s += &formatt!(2; "struct_size += __{}<", stringify!($field_type));
-        let mut generics_added = 0;
-        $(
-        __s += &format!("{},", stringify!($field_generic)); 
-        generics_added += 1;
-        )*
-        if generics_added > 0 { // remove last comma
-            __s = __s[0.. __s.len()-1].to_string();
-        }
-
-        __s += &format!(">::__min_size();\n");
+        $( __s += &format!("{},", stringify!($field_generic)); )*
+        __s += &format!("void>::min_size();\n");
         __s += &munch_size!(@$($other_fields)* );
         __s
     }};

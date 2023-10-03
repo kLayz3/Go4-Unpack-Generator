@@ -11,13 +11,13 @@ macro_rules! munch_fill {
         __s
     }};
 
-    // If encountering either a primitive or composed - just call their __fill()
+    // If encountering either a primitive or composed - just call their fill()
     (@ $([[ $loop_index:expr ]])? $field_type:ident $field_name:ident ; $($other_fields:tt)* ) => {{
         let mut __s = String::new();
         __s += &formatt!(2; "{}", stringify!($field_name));
         $( __s += &format!("_{}", $loop_index); )?
-        __s += &format!(".__fill(__event_handle, bytes_available, bytes_read_sub);\n");
-        __s += &formatt!(2;"__event_handle += bytes_read_sub;\n");
+        __s += &format!(".fill(event_handle, bytes_available, bytes_read_sub);\n");
+        __s += &formatt!(2;"event_handle += bytes_read_sub;\n");
         __s += &formatt!(2;"bytes_read += bytes_read_sub;\n\n");
         __s += &munch_fill!(@ $($other_fields)*);
         __s
@@ -35,7 +35,7 @@ macro_rules! munch_fill {
     
     // dyn! fields keep filling the array until either array is full, buffer is over or condition
     // is violated.
-    (@ dyn! $([max = $max_dyn:expr])? $field_type:ident $(($($field_generic:expr),*))? $field_name:ident ; $($other_fields:tt)* ) => {{
+    (@ dyn! $([max = $max_dyn:expr])? $field_name:ident = $field_type:ident ($($field_generic:expr),*) ; $($other_fields:tt)* ) => {{
         let mut __s = String::new();
     }};
     (@ dyn! $([max = $max_dyn:expr])? $field_type:ident $field_name:ident { $($condition_body:tt)* } ; $($other_fields:tt)* ) => {
