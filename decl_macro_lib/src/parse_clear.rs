@@ -14,7 +14,7 @@ macro_rules! parse_clear {
 
     // Dynamic fields just call their own clear
     // Next three rules expand to the 4th rule
-    (@dyn! $([max = $max_dyn:expr])? $field_name:ident = $field_type:ident ($($field_generic:expr),*) ; $($other_fields:tt)* ) => {
+    (@dyn! $([max = $max_dyn:expr])? $field_name:ident = $field_type:ident ($($field_generic:tt)*) ; $($other_fields:tt)* ) => {
         parse_clear!(@ $field_type $field_name ; $($other_fields)*)
     }; 
     (@dyn! $([max = $max_dyn:expr])? $field_type:ident $field_name:ident { $($condition_body:tt)* } ; $($other_fields:tt)* ) => {
@@ -33,7 +33,7 @@ macro_rules! parse_clear {
         __s
     }};
     // Next three rules expand to the rule above.
-    (@$([[ $loop_index:expr ]])? $field_name:ident = $field_type:ident ( $($field_generic:expr)? ) ; $($other_fields:tt)* ) => { 
+    (@$([[ $loop_index:expr ]])? $field_name:ident = $field_type:ident ( $($field_generic:tt)* ) ; $($other_fields:tt)* ) => { 
         parse_clear!(@ $([[$loop_index]])? $field_type $field_name ; $($other_fields)*);
     };
 

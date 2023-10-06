@@ -4,7 +4,6 @@ use std::{fs::File, io::{BufRead, BufReader}};
 use proc_macro::TokenStream;
 use regex::Regex;
 /*
-use regex::Regex;
 use std::process::Command;
 macro_rules! exec_command {
     ($com_name: ident $($arg:tt)*) => {
