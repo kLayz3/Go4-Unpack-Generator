@@ -28,16 +28,27 @@ struct __D64 {
 // todo!
 // copy and write it for __D32, __D16, __D8
 
-// Container for MEMBER ptr's
-template<uint8_t l, uint8_t h>
+// Container for ENCODE ptrs, doesn`t own the pointer to the word
+template<typename T>
 class Go4UnpackPtr {
-	uint32_t* p;
-	static constexpr uint32_t mask = (uint32_t)( (1ull << (h-l+1)) - 1);
+	uint64_t* p;
+	uint8_t l;
+	uint8_t h;
+	T mask;
 public:
-	bool has_data;
-	Go4UnpackPtr(void* p)  : p((uint32_t*)p), has_data(0) {}
-	uint32_t operator*() noexcept {
-		return mask & (*p >> l);
+	Go4UnpackPtr() : p(nullptr), l(0), h(0), mask(0) {}
+	void assign(void* p, uint8_t l, uint8_t h) {
+		this->p = (T*)p;
+		this->l = l;
+		this->h = h;
+		this->mask = ((T)((1ull << (h-l+1)) -1));
+		if(h-l+1 > 63) this->mask = (T)0xffffffffffffffff;
+	}
+	T get_data() const noexcept {
+		return mask & (T)(*p >> l);
+	}
+	T operator*() const noexcept {
+		return mask & (T)(*p >> l);
 	}
 };
 
@@ -58,59 +69,6 @@ template<typename _T = void>
 using __UInt64_t = __D64<_T>;
 template<typename _T = void>
 using __Int64_t = __D64<_T>;
-
-// --------------32 bit ----------------//
-template<typename _T = void>
-using __u32      = __D32<_T>;
-template<typename _T = void>
-using __i32      = __D32<_T>;
-template<typename _T = void>
-using __U32      = __D32<_T>;
-template<typename _T = void>
-using __I32      = __D32<_T>;
-template<typename _T = void>
-using __uint32_t = __D32<_T>;
-template<typename _T = void>
-using __int32_t = __D32<_T>;
-template<typename _T = void>
-using __UInt32_t = __D32<_T>;
-template<typename _T = void>
-using __Int32_t = __D32<_T>;
-
-// --------------16 bit ----------------//
-template<typename _T = void>
-using __u16      = __D16<_T>;
-template<typename _T = void>
-using __i16      = __D16<_T>;
-template<typename _T = void>
-using __U16      = __D16<_T>;
-template<typename _T = void>
-using __I16      = __D16<_T>;
-template<typename _T = void>
-using __uint16_t = __D16<_T>;
-template<typename _T = void>
-using __int16_t = __D16<_T>;
-template<typename _T = void>
-using __UInt16_t = __D16<_T>;
-template<typename _T = void>
-using __Int16_t = __D16<_T>;
-
-// --------------8 bit ----------------//
-template<typename _T = void>
-using __u8      = __D8<_T>;
-template<typename _T = void>
-using __i8      = __D8<_T>;
-template<typename _T = void>
-using __U8      = __D8<_T>;
-template<typename _T = void>
-using __I8      = __D8<_T>;
-template<typename _T = void>
-using __uint8_t = __D8<_T>;
-template<typename _T = void>
-using __int8_t = __D8<_T>;
-template<typename _T = void>
-using __UInt8_t = __D8<_T>;
-template<typename _T = void>
-using __Int8_t = __D8<_T>;
+using DATA64 = uint64_t;
 
 #endif

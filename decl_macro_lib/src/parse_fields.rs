@@ -2,73 +2,93 @@
 
 #[allow(unused_mut)]
 #[macro_export]
-macro_rules! munch_fields {
+macro_rules! parse_fields {
+    // Parse `MEMBER` declarations, $num_of_items can be a template parameter!
+    (@MEMBER($type:ident $name:ident $([$num_of_items:expr])* ); $($other_fields:tt)* ) => {{
+        let mut __s = String::new();
+        __s += &formatt!(1; "Go4UnpackPtr<{}> {}", stringify!($type), stringify!($name));
+         $( __s += &format!("[{}]", stringify!($num_of_items)); )*
+        __s += ";\n";
+        __s += &parse_fields!(@ $($other_fields)*);
+        __s
+    }};
+    
     // Expand fields defined in a `for`  
     (@for ( $loop_left:tt <= $loop_index:ident < $loop_right:expr ) { $($loop_body:tt)* } $($other_fields:tt)* ) => {{
         let mut __s = String::new();
         for i in $loop_left .. $loop_right {
             __s += &format!("#define {} {}\n", stringify!($loop_index), i);
-            __s += &munch_fields!(@ [[i]] $($loop_body)*);
+            __s += &parse_fields!(@ [[i]] $($loop_body)*);
             __s += &format!("#undef {}\n", stringify!($loop_index));
         }
-        __s += &munch_fields!(@ $($other_fields)*);
+        __s += &parse_fields!(@ $($other_fields)*);
         __s
     }};
     
     // Dynamic fields with capacity $max_dyn hold an array. Cannot be in a `for`. 
     // Possible for structure fields without `{}` block or primitives with mandatory `{}` block or
     // `MATCH` assignment 
-    (@dyn! $([max = $max_dyn:expr])? $field_name:ident = $field_type:ident ($($field_generic:expr),*) ; $($other_fields:tt)* ) => {{
-        let mut max_dyn = MAX_DYN_DEFAULT;
-        $( max_dyn = $max_dyn as usize; )?
+    // max_dyn can be a template parameter!! 
+    (@dyn! $([max = $max_dyn:expr])? $field_name:ident = $field_type:ident ( $($fgen_name:ident = $fgen_val:expr),* ) ; $($other_fields:tt)* ) => {{
+        let mut max_dyn = stringify!(MAX_DYN_DEFAULT);
+        $( max_dyn = stringify!($max_dyn); )?
         let mut __s = String::new();
-        __s += &parse_dyn_decl!(max_dyn => $field_type ( $($field_generic)* ) $field_name);
-        __s += &parse_dyn_common!(max_dyn => $field_type $field_name);
-        __s += &parse_dyn_check!(max_dyn => $field_type ( $($field_generic)* ) $field_name);
+        __s += &format!("#define _MAX_DYN {}\n", max_dyn);
+        __s += &parse_dyn_decl!($field_type ( $($fgen_val),* ) $field_name);
+        __s += &parse_dyn_init!();
+        __s += &parse_dyn_common!($field_type $field_name);
+        __s += &parse_dyn_check!($field_type $field_name);
         __s += &formatt!(1; "}} {};\n", stringify!($field_name));
-        __s += &munch_fields!(@ $( $other_fields )*);
+        __s += &format!("#undef _MAX_DYN\n");
+        __s += &parse_fields!(@ $( $other_fields )*);
         __s
     }}; 
-    // Next two rules expand similarly.
+    // Next two rules expand similarly, for a field tagged with `{}` or a `MATCH`
     (@dyn! $([max = $max_dyn:expr])? $field_type:ident $field_name:ident { $($condition_body:tt)* } ; $($other_fields:tt)* ) => {{
         let mut max_dyn = MAX_DYN_DEFAULT;
         $( max_dyn = $max_dyn as usize; )?
         let mut __s = String::new();
-        __s += &parse_dyn_decl!(max_dyn => $field_type () $field_name);
-        __s += &parse_dyn_common!(max_dyn => $field_type $field_name);
-        __s += &parse_dyn_check!(max_dyn => $field_type $field_name { $($condition_body)* });
+        __s += &format!("#define _MAX_DYN {}\n", max_dyn);
+        __s += &parse_dyn_decl!($field_type () $field_name);
+        __s += &parse_dyn_init!($field_type $field_name { $($condition_body)* });
+        __s += &parse_dyn_common!($field_type $field_name);
+        __s += &parse_dyn_check!($field_type $field_name { $($condition_body)* });
         __s += &formatt!(1; "}} {};\n", stringify!($field_name));
-        __s += &munch_fields!(@ $( $other_fields )*);
+        __s += &format!("#undef _MAX_DYN\n");
+        __s += &parse_fields!(@ $( $other_fields )*);
         __s
     }};
     (@dyn! $([max = $max_dyn:expr])? $field_type:ident $field_name:ident = MATCH($match_val:expr) ; $($other_fields:tt)* ) => {{
         let mut max_dyn = MAX_DYN_DEFAULT;
         $( max_dyn = $max_dyn as usize; )?
         let mut __s = String::new();
-        __s += &parse_dyn_decl!(max_dyn => $field_type () $field_name);
-        __s += &parse_dyn_common!(max_dyn => $field_type $field_name);
-        __s += &parse_dyn_check!(max_dyn => $field_type $field_name = MATCH($match_val));
+        __s += &format!("#define _MAX_DYN {}\n", max_dyn);
+        __s += &parse_dyn_decl!($field_type () $field_name);
+        __s += &parse_dyn_init!();
+        __s += &parse_dyn_common!($field_type $field_name);
+        __s += &parse_dyn_check!($field_type $field_name = MATCH($match_val));
         __s += &formatt!(1; "}} {};\n", stringify!($field_name));
-        __s += &munch_fields!(@ $( $other_fields )*);
+        __s += &format!("#undef _MAX_DYN\n");
+        __s += &parse_fields!(@ $( $other_fields )*);
         __s
     }};
 
     // Fields with `MATCH` cannot be a generic or hold a {} block.
     (@$([[ $loop_index:expr ]])? $field_type:ident $field_name:ident = MATCH($field_val:expr) ; $($other_fields:tt)* ) => {
-        munch_fields!(@ $([[$loop_index]])? $field_type $field_name ; $($other_fields)* )
+        parse_fields!(@ $([[$loop_index]])? $field_type $field_name ; $($other_fields)* )
     };
 
-    // Generic'ed fields are of the format: name = type(generics..);
-    (@$([[ $loop_index:expr ]])? $field_name:ident = $field_type:ident ( $($field_generic:expr),* ) ; $($other_fields:tt)* ) => {{
+    // Non-primitive fields are of the format: name = type(gen_name = gen_val, ...);
+    (@$([[ $loop_index:expr ]])? $field_name:ident = $field_type:ident ( $($fgen_name:ident = $fgen_val:expr),* ) ; $($other_fields:tt)* ) => {{
         let mut __s = String::new();
         __s += &formatt!(1; "_{}<", stringify!($field_type));
-        $( __s += &format!("{},", stringify!($field_generic)); )*
+        $( __s += &format!("{},", stringify!($fgen_val)); )*
         __s += &format!("void> {}", stringify!($field_name));
         $( // Add loop index to the name, if it is supplied
         __s += &format!("_{}", $loop_index);
         )?
         __s += ";\n";
-        __s += &munch_fields!(@ $([[ $loop_index ]])? $( $other_fields )*);
+        __s += &parse_fields!(@ $([[ $loop_index ]])? $( $other_fields )*);
         __s
     }};
 
@@ -80,11 +100,11 @@ macro_rules! munch_fields {
         __s += &format!("_{}", $loop_index);
         )?
         __s += ";\n";
-        __s += &munch_fields!(@ $([[ $loop_index ]])? $( $other_fields )*);
+        __s += &parse_fields!(@ $([[ $loop_index ]])? $( $other_fields )*);
         __s   
     }};
 
-    // At the max depth of recursion, return and pop the stack frames
+    // Return at the max depth of recursion
     (@$([[ $loop_index:expr ]])? ) => {{
         String::new()
     }};

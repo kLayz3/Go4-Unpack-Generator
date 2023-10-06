@@ -1,15 +1,20 @@
 #[macro_export] 
-macro_rules! munch_condition {
-    // `$name` is the structure identifier passed to this macro by the main invocation.
+macro_rules! parse_condition {
+    // `$name` is the structure identifier passed to this macro by the `parse_struct!` invocation.
+    
+    // Skip parsing MEMBER decl:
+    ($name:ident MEMBER( $($x:tt)* ); $($other_fields:tt)* ) => {
+        parse_size!(@$($other_fields)*)
+    };
     // Dynamic objects don't participate in check_event(), their data is checked during filling.
-    ( $name:ident dyn! $([max = $max_dyn:expr])? $field_name:ident = $field_type:ident ($($field_generic:expr),*)  ; $($other_fields:tt)* ) => {
-        munch_condition!( $name $($other_fields)*)
+    ( $name:ident dyn! $([max = $max_dyn:expr])? $field_name:ident = $field_type:ident ($($field_generic:tt)*)  ; $($other_fields:tt)* ) => {
+        parse_condition!( $name $($other_fields)*)
     };
     ( $name:ident dyn! $([max = $max_dyn:expr])? $field_type:ident $field_name:ident { $($condition_body:tt)* } ; $($other_fields:tt)* ) => {
-        munch_condition!( $name $($other_fields)*)
+        parse_condition!( $name $($other_fields)*)
     };
     ( $name:ident dyn! $([max = $max_dyn:expr])? $field_type:ident $field_name:ident = MATCH($field_val:expr) ; $($other_fields:tt)* ) => {
-        munch_condition!( $name $($other_fields)*)
+        parse_condition!( $name $($other_fields)*)
     };
 
     ( $name:ident $([[$loop_index:expr]])? ) => {{
@@ -21,10 +26,10 @@ macro_rules! munch_condition {
         let mut __s = String::new();
         for i in $loop_left..$loop_right {
             __s += &format!("#define {} {}\n", stringify!($loop_index), i);
-            __s += &munch_condition!( $name [[i]] $($loop_body)*);
+            __s += &parse_condition!( $name [[i]] $($loop_body)*);
             __s += &format!("#undef {}\n", stringify!($loop_index));
         }
-        __s += &munch_condition!( $name $($other_fields)*);
+        __s += &parse_condition!( $name $($other_fields)*);
         __s
     }};
 
@@ -38,7 +43,7 @@ macro_rules! munch_condition {
         __s += &format!("_{}", $loop_index);
         )?
         __s += &format!(" == ({})); __!b) {{\n", stringify!($assert_val));
-        __s += &formatt!(4; "printerr(\"{}Event mismatch! Trying to `MATCH` in base structure: {}{}.{}", __KRED, __KMAG, stringify!($name), stringify!($field_name));
+        __s += &formatt!(4; "printerr(\"{}Event mismatch! Trying to `MATCH` in base structure: {}{}::{}", __KRED, __KMAG, stringify!($name), stringify!($field_name));
         $(
         __s += &format!("_{} (inside `for`)", $loop_index);
         )?
@@ -47,24 +52,24 @@ macro_rules! munch_condition {
         __s += &formatt!(3; "}}\n"); 
         __s += &formatt!(2; "}}\n"); 
         
-        __s += &munch_condition!( $name $([[$loop_index]])? $($other_fields)*);
+        __s += &parse_condition!( $name $([[$loop_index]])? $($other_fields)*);
         __s
     }};
        
     // Fields without condition block are skipped.
     ( $name:ident $([[$loop_index:expr]])? 
      $field_type:ident $field_name:ident ; $($other_fields:tt)* ) => {
-        munch_condition!( $name $([[$loop_index]])? $($other_fields)*)
+        parse_condition!( $name $([[$loop_index]])? $($other_fields)*)
     };
 
     // Non-primitive fields just call their own `check_event()`
     ( $name:ident $([[$loop_index:expr]])? 
-     $field_name:ident = $field_type:ident ( $($field_generic:expr),* ) ; $($other_fields:tt)* ) => {{
+     $field_name:ident = $field_type:ident ( $($field_generic:tt)* ) ; $($other_fields:tt)* ) => {{
         let mut __s = String::new();
         __s += &formatt!(2; "if(__b &= this->{}", stringify!($field_name));
         $(__s += &format!("_{}", $loop_index); )?
         __s += ".check_event(); !__b) return __b;\n";
-        __s += &munch_condition!( $name $([[$loop_index]])? $($other_fields)*);
+        __s += &parse_condition!( $name $([[$loop_index]])? $($other_fields)*);
         __s
     }};
    
@@ -73,13 +78,13 @@ macro_rules! munch_condition {
     ( $name:ident $([[$loop_index:expr]])? 
      $field_type:ident $field_name:ident { $($inside:tt)* } ; $($other_fields:tt)*) => {{
         let mut __s = String::new();
-        __s += &munch_condition_inside!( ($name,$field_name) $([[$loop_index]])? => $($inside)* );
-        __s += &munch_condition!( $name $([[$loop_index]])? $($other_fields)* );
+        __s += &parse_condition_inside!( ($name,$field_name) $([[$loop_index]])? => $($inside)* );
+        __s += &parse_condition!( $name $([[$loop_index]])? $($other_fields)* );
         __s
     }};
 }
 #[macro_export]
-macro_rules! munch_condition_inside {
+macro_rules! parse_condition_inside {
     // A field could encounter 5 different possible rules:
     // U32 NAMED {
     //           0..15 => 0xfefe; // Ranged assert    (1)
@@ -92,7 +97,7 @@ macro_rules! munch_condition_inside {
     // Possibility (3): skip
     ( ($name:ident, $field_name:ident) $([[$loop_index:expr]])? =>
      ENCODE( $($_tt:tt)* ) ; $($rest:tt)* ) => {
-        munch_condition_inside!( ($name,$field_name) $([[$loop_index]])? => $($rest)* )
+        parse_condition_inside!( ($name,$field_name) $([[$loop_index]])? => $($rest)* )
     };
 
     // Possibility (1)
@@ -114,7 +119,7 @@ macro_rules! munch_condition_inside {
         __s += &formatt!(3; "}}\n"); 
         __s += &formatt!(2; "}}\n"); 
         
-        __s += &munch_condition_inside!( ($name,$field_name) $([[$loop_index]])? => $($rest)*);
+        __s += &parse_condition_inside!( ($name,$field_name) $([[$loop_index]])? => $($rest)*);
         __s 
     }};
 
@@ -135,7 +140,7 @@ macro_rules! munch_condition_inside {
         __s += &formatt!(3; "}}\n"); 
         __s += &formatt!(2; "}}\n"); 
         
-        __s += &munch_condition_inside!( ($name,$field_name) $([[$loop_index]])? => $($rest)*);
+        __s += &parse_condition_inside!( ($name,$field_name) $([[$loop_index]])? => $($rest)*);
         __s 
     }};
 

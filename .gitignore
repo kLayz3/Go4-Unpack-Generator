@@ -3,6 +3,7 @@
 *.struct
 *.spec
 *.lmd
+*.subev
 proc_macro_lib/target
 decl_macro_lib/target
 info_for_me.md

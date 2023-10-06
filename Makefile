@@ -9,8 +9,8 @@ all:
 	@$(RUSTC) build
 	@$(RUSTC) run
 	@rm -f $(STRUCTURE_FILE) && touch $(STRUCTURE_FILE)
-	@echo '#include "$(COMMON_STRUCT)"\n' >> $(STRUCTURE_FILE)
-	@cat *.struct >> $(STRUCTURE_FILE)
+	@echo '#include "$(COMMON_STRUCT)"\n' > $(STRUCTURE_FILE)
+	@ls -t | grep -E '\.struct$$' | tac | xargs cat >> $(STRUCTURE_FILE)
 	@rm -f *.struct
 
 .PHONY: clean

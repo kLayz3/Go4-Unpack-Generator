@@ -1,6 +1,8 @@
 extern crate proc_macro;
 
+use std::{fs::File, io::{BufRead, BufReader}}; 
 use proc_macro::TokenStream;
+use regex::Regex;
 /*
 use regex::Regex;
 use std::process::Command;
@@ -21,8 +23,19 @@ macro_rules! exec_command {
 
 #[proc_macro]
 pub fn load_spec_file(_item: TokenStream) -> TokenStream {
-    let s =  std::fs::read_to_string("event.spec").unwrap();
-    println!("Parsing structure: {}", s);
+    let f =  File::open("event.spec").expect("`event.spec` file not found!");
+    let reader = BufReader::new(f);
+    let re = Regex::new(r"((?:^|\s)(?:SUB)?EVENT\W)").unwrap();
+
+    let mut v: Vec<String> = vec![];
+    for line in reader.lines() {
+        let line1 = re.replace(line.as_ref().unwrap(), "@${1}").as_ref().to_owned();
+        v.push(line1);
+    }
+    let s: String = v.join("\n");
+
+    println!("Parsing structure:\n{}", s);
+
     let mut head: TokenStream = "parse_spec_file!".parse().unwrap();
     let tail: String = "(".to_owned() + &s + ")";
     head.extend(tail.parse::<TokenStream>().unwrap());
