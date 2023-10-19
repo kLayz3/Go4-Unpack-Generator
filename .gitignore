@@ -4,6 +4,8 @@
 *.spec
 *.lmd
 *.subev
+*.txt
+structures.hh
 proc_macro_lib/target
 decl_macro_lib/target
 info_for_me.md

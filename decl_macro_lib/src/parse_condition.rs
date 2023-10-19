@@ -4,7 +4,7 @@ macro_rules! parse_condition {
     
     // Skip parsing MEMBER decl:
     ($name:ident MEMBER( $($x:tt)* ); $($other_fields:tt)* ) => {
-        parse_size!(@$($other_fields)*)
+        parse_condition!($name $($other_fields)*)
     };
     // Dynamic objects don't participate in check_event(), their data is checked during filling.
     ( $name:ident dyn! $([max = $max_dyn:expr])? $field_name:ident = $field_type:ident ($($field_generic:tt)*)  ; $($other_fields:tt)* ) => {

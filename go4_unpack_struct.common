@@ -5,6 +5,8 @@
 #include <iostream>
 #include <cstdio>
 
+#define MAX_DYN_DEFAULT 128
+
 template<typename _T = void>
 struct __D64 {
 	uint64_t x;

@@ -22,7 +22,7 @@ macro_rules! exec_command {
 
 #[proc_macro]
 pub fn load_spec_file(_item: TokenStream) -> TokenStream {
-    let f =  File::open("event.spec").expect("`event.spec` file not found!");
+    let f =  File::open("__main_event.spec").expect("`event.spec` file not found!");
     let reader = BufReader::new(f);
     let re = Regex::new(r"((?:^|\s)(?:SUB)?EVENT\W)").unwrap();
 

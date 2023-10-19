@@ -1,4 +1,4 @@
-#[allow(dead_code)] pub const MAX_DYN_DEFAULT: usize = 128;
+// #[allow(dead_code)] pub const MAX_DYN_DEFAULT: usize = 128;
 
 #[allow(unused_mut)]
 #[macro_export]
@@ -45,8 +45,8 @@ macro_rules! parse_fields {
     }}; 
     // Next two rules expand similarly, for a field tagged with `{}` or a `MATCH`
     (@dyn! $([max = $max_dyn:expr])? $field_type:ident $field_name:ident { $($condition_body:tt)* } ; $($other_fields:tt)* ) => {{
-        let mut max_dyn = MAX_DYN_DEFAULT;
-        $( max_dyn = $max_dyn as usize; )?
+        let mut max_dyn = stringify!(MAX_DYN_DEFAULT);
+        $( max_dyn = stringify!($max_dyn); )?
         let mut __s = String::new();
         __s += &format!("#define _MAX_DYN {}\n", max_dyn);
         __s += &parse_dyn_decl!($field_type () $field_name);
@@ -59,8 +59,8 @@ macro_rules! parse_fields {
         __s
     }};
     (@dyn! $([max = $max_dyn:expr])? $field_type:ident $field_name:ident = MATCH($match_val:expr) ; $($other_fields:tt)* ) => {{
-        let mut max_dyn = MAX_DYN_DEFAULT;
-        $( max_dyn = $max_dyn as usize; )?
+        let mut max_dyn = stringify!(MAX_DYN_DEFAULT);
+        $( max_dyn = stringify!($max_dyn); )?
         let mut __s = String::new();
         __s += &format!("#define _MAX_DYN {}\n", max_dyn);
         __s += &parse_dyn_decl!($field_type () $field_name);
@@ -81,7 +81,7 @@ macro_rules! parse_fields {
     // Non-primitive fields are of the format: name = type(gen_name = gen_val, ...);
     (@$([[ $loop_index:expr ]])? $field_name:ident = $field_type:ident ( $($fgen_name:ident = $fgen_val:expr),* ) ; $($other_fields:tt)* ) => {{
         let mut __s = String::new();
-        __s += &formatt!(1; "_{}<", stringify!($field_type));
+        __s += &formatt!(1; "{}<", stringify!($field_type));
         $( __s += &format!("{},", stringify!($fgen_val)); )*
         __s += &format!("void> {}", stringify!($field_name));
         $( // Add loop index to the name, if it is supplied

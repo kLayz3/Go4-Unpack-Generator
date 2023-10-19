@@ -3,17 +3,21 @@ RUST_PROC_MACRO_LIB := proc_macro_lib/src/lib.rs
 COMMON_STRUCT = go4_unpack_struct.common
 STRUCTURE_FILE = structures.hh
 
+MAIN_SPEC = event.spec
+
 all:
 	touch -c  $(RUST_PROC_MACRO_LIB)
+	gcc -E -x c++ $(MAIN_SPEC) -P -o __main_event.spec
 	rm -f *.struct
 	@$(RUSTC) build
 	@$(RUSTC) run
-	@rm -f $(STRUCTURE_FILE) && touch $(STRUCTURE_FILE)
 	@echo '#include "$(COMMON_STRUCT)"\n' > $(STRUCTURE_FILE)
 	@ls -t | grep -E '\.struct$$' | tac | xargs cat >> $(STRUCTURE_FILE)
 	@rm -f *.struct
+	@rm -f __main_event.spec
 
 .PHONY: clean
 clean:
 	$(RUSTC) clean
+	rm -f *.struct
 

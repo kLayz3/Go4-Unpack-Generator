@@ -96,8 +96,8 @@ macro_rules! parse_dyn_check_inside {
         let mut __s = String::new();
         __s += &formatt!(3; "{{\n");
         __s += &formatt!(4; "uint32_t __mask = (uint32_t)((1ull << ({} - ({}))) - 1);\n", stringify!($right_bound), stringify!($left_bound));
-        __s += &formatt!(4; "uint32_t __word = (uint32_t)(data[num_items] >> ({}));", stringify!($left_bound));
-        __s += &formatt!(4; "if(__b &= ((__word & __mask) == ({})); !__b) return 0;", stringify!($assert_val));
+        __s += &formatt!(4; "uint32_t __word = (uint32_t)(data[num_items] >> ({}));\n", stringify!($left_bound));
+        __s += &formatt!(4; "if(__b &= ((__word & __mask) == ({})); !__b) return 0;\n", stringify!($assert_val));
         __s += &formatt!(3; "}}\n"); 
         __s += &parse_dyn_check_inside!(@$($rest)* );
         __s
@@ -105,9 +105,9 @@ macro_rules! parse_dyn_check_inside {
 
     (@ $bit:tt => $assert_val:expr ; $($rest:tt)*) => {{
         let mut __s = String::new();
-        __s += &formatt!(2; "{{\n");
-        __s += &formatt!(4; "uint32_t __word = (uint32_t)(data[num_items] >> ({}));", stringify!($bit));
-        __s += &formatt!(4; "if(__b &= ((__word & 1) == ({})); !__b) return 0;", stringify!($assert_val));
+        __s += &formatt!(3; "{{\n");
+        __s += &formatt!(4; "uint32_t __word = (uint32_t)(data[num_items] >> ({}));\n", stringify!($bit));
+        __s += &formatt!(4; "if(__b &= ((__word & 1) == ({})); !__b) return 0;\n", stringify!($assert_val));
         __s += &formatt!(3; "}}\n"); 
         __s += &parse_dyn_check_inside!(@$($rest)* );
         __s
@@ -137,7 +137,7 @@ macro_rules! parse_dyn_init_inside {
         
     (@ ENCODE($left_bound:tt .. $right_bound:expr => $encode_id:ident) ; $($rest:tt)* ) => {{
         let mut __s = String::new();
-        __s += &formatt!(2; "for(int _i = 0; _i < MAX_DYN; ++_i)\n");
+        __s += &formatt!(2; "for(int _i = 0; _i < _MAX_DYN; ++_i)\n");
         __s += &formatt!(3; "{}.assign(&data[_i], {}, {});\n", stringify!($encode_id), stringify!($left_bound), stringify!($right_bound));
 
         __s += &parse_dyn_init_inside!(@$($rest)* );
