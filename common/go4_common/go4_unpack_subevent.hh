@@ -12,11 +12,11 @@
 	void set_##x (T val) { x = val; }
 
 struct Go4UnpackSubevent {
-	ADD_FIELD(uint16_t, subtype);
-	ADD_FIELD(uint16_t, i_type);
-	ADD_FIELD(uint16_t, h_control);
-	ADD_FIELD(uint16_t, h_subcrate);
-	ADD_FIELD(uint16_t, i_procid);
+	uint16_t subtype;
+	uint16_t i_type;
+	uint16_t h_control;
+	uint16_t h_subcrate;
+	uint16_t i_procid;
 
 	Go4UnpackSubevent() :
 		l_dlen(0),
@@ -26,8 +26,11 @@ struct Go4UnpackSubevent {
 		h_subcrate(0xff),
 		i_procid(0xffff) {}
 
-	virtual void fill() = 0;
-	virtual void 
+	Go4UnpackSubevent(TGo4Mbs
+	virtual void init() = 0;
+	virtual void fill(uint8_t* subev_ptr, size_t&)
+	virtual void check_event() = 0;
+	virtual void clear() = 0;
 };
 
 #endif

@@ -73,6 +73,16 @@ macro_rules! parse_fields {
         __s
     }};
 
+    // Local fields declarations cannot match or have condition body, must be outside of `for` 
+    // they are just placeholders for some values in decoding, nothing more!
+    (@local! $field_type:ident $field_name:ident ; $($other_fields:tt)* ) => {{
+        let mut __s = String::new();
+        __s += &formatt!(1; "private: __{}<> {};\n", stringify!($field_type), stringify!($field_name));
+        __s += &format!("public: \n");
+        __s += &parse_fields!(@ $( $other_fields )*);
+        __s
+    }};
+
     // Fields with `MATCH` cannot be a generic or hold a {} block.
     (@$([[ $loop_index:expr ]])? $field_type:ident $field_name:ident = MATCH($field_val:expr) ; $($other_fields:tt)* ) => {
         parse_fields!(@ $([[$loop_index]])? $field_type $field_name ; $($other_fields)* )

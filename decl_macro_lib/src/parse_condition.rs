@@ -4,16 +4,25 @@ macro_rules! parse_condition {
     
     // Skip parsing MEMBER decl:
     ($name:ident MEMBER( $($x:tt)* ); $($other_fields:tt)* ) => {
-        parse_condition!($name $($other_fields)*)
+        parse_condition!( $name $($other_fields)*)
     };
+    // Local placeholders skip
+    ( $name:ident local! $field_type:ident $field_name:ident ; $($other_fields:tt)* ) => {
+        parse_condition!( $name $($other_fields)*)
+    };
+
     // Dynamic objects don't participate in check_event(), their data is checked during filling.
-    ( $name:ident dyn! $([max = $max_dyn:expr])? $field_name:ident = $field_type:ident ($($field_generic:tt)*)  ; $($other_fields:tt)* ) => {
+    ( $name:ident dyn! $([max = $max_dyn:expr])? $field_name:ident = $field_type:ident ($($field_generic:expr),*)  ; $($other_fields:tt)* ) => {
         parse_condition!( $name $($other_fields)*)
     };
     ( $name:ident dyn! $([max = $max_dyn:expr])? $field_type:ident $field_name:ident { $($condition_body:tt)* } ; $($other_fields:tt)* ) => {
         parse_condition!( $name $($other_fields)*)
     };
     ( $name:ident dyn! $([max = $max_dyn:expr])? $field_type:ident $field_name:ident = MATCH($field_val:expr) ; $($other_fields:tt)* ) => {
+        parse_condition!( $name $($other_fields)*)
+    };
+
+    ( $name:ident dyn! $([max = $max_dyn:expr])? $field_name:ident = $field_type:ident ($($field_generic:expr),*)  ; $($other_fields:tt)* ) => {
         parse_condition!( $name $($other_fields)*)
     };
 
@@ -64,7 +73,7 @@ macro_rules! parse_condition {
 
     // Non-primitive fields just call their own `check_event()`
     ( $name:ident $([[$loop_index:expr]])? 
-     $field_name:ident = $field_type:ident ( $($field_generic:tt)* ) ; $($other_fields:tt)* ) => {{
+     $field_name:ident = $field_type:ident ( $($field_generic:expr),* ) ; $($other_fields:tt)* ) => {{
         let mut __s = String::new();
         __s += &formatt!(2; "if(__b &= this->{}", stringify!($field_name));
         $(__s += &format!("_{}", $loop_index); )?
@@ -83,12 +92,14 @@ macro_rules! parse_condition {
         __s
     }};
 }
+
 #[macro_export]
 macro_rules! parse_condition_inside {
-    // A field could encounter 5 different possible rules:
+    // A field could encounter 4 different possible rules:
     // U32 NAMED {
     //           0..15 => 0xfefe; // Ranged assert    (1)
     //              19 => 0x0;    // Bit assert       (2)
+    //           0..15 => @loc;   // save a slice into local placeholder `loc`
     //   ENCODE(21..31 => id)     // ENCODE directive (3)
     // };
     // On either the left or the right side of => can also be the generic parameter (of main structure), 
@@ -97,6 +108,12 @@ macro_rules! parse_condition_inside {
     // Possibility (3): skip
     ( ($name:ident, $field_name:ident) $([[$loop_index:expr]])? =>
      ENCODE( $($_tt:tt)* ) ; $($rest:tt)* ) => {
+        parse_condition_inside!( ($name,$field_name) $([[$loop_index]])? => $($rest)* )
+    };
+
+    // Possibility (4): skip
+    ( ($name:ident, $field_name:ident) $([[$loop_index:expr]])? =>
+     $left_bound:tt .. $right_bound:expr => @$loc:ident ; $($rest:tt)* ) => {
         parse_condition_inside!( ($name,$field_name) $([[$loop_index]])? => $($rest)* )
     };
 

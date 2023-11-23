@@ -4,6 +4,11 @@ macro_rules! parse_size {
     (@MEMBER( $($x:tt)* ); $($other_fields:tt)* ) => {
         parse_size!(@$($other_fields)*)
     };
+    // Skip placeholders
+    (@local! $field_type:ident $field_name:ident ; $($other_fields:tt)* ) => {
+        parse_size!(@$($other_fields)*)
+    };
+
     (@ for ( $loop_left:tt <= $loop_index:ident < $loop_right:expr ) { $($loop_body:tt)* } $($other_fields:tt)* ) => {{
         let mut __s = String::new();
         for i in $loop_left .. $loop_right {

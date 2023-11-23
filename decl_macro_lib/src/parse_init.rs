@@ -8,8 +8,11 @@ macro_rules! parse_init {
     (@MEMBER( $($x:tt)* ); $($other_fields:tt)* ) => {
         parse_init!(@$($other_fields)*)
     };
-
-     // If encountering a `for` statement, repeat the body:
+    // Skip placeholders
+    (@local! $field_type:ident $field_name:ident ; $($other_fields:tt)* ) => {
+        parse_init!(@$($other_fields)*)
+    };
+    // If encountering a `for` statement, repeat the body:
     (@ for($loop_left:tt <= $loop_index:ident < $loop_right:expr) { $($loop_body:tt)* } $($other_fields:tt)* ) => {{
         let mut __s = String::new();
         for i in $loop_left..$loop_right {
@@ -73,6 +76,16 @@ macro_rules! parse_init {
 
 #[macro_export]
 macro_rules! parse_init_inside {
+    // A field could encounter 4 different possible rules:
+    // U32 NAMED {
+    //           0..15 => 0xfefe; // Ranged assert    (1)
+    //              19 => 0x0;    // Bit assert       (2)
+    //           0..15 => @loc;   // save a slice into local placeholder `loc`
+    //   ENCODE(21..31 => id)     // ENCODE directive (3)
+    // };
+    // On either the left or the right side of => can also be the generic parameter (of main structure), 
+    // a loop value so just paste the token and 'trust' the user it's implied somewhere.
+
     ($([[$loop_index:expr]])? $field_name:ident =>
      ENCODE($left_bound:tt .. $right_bound:expr => $encode_id:ident $( [$encode_index:expr] )? ) ; $($rest:tt)* ) => {{
 

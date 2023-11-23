@@ -23,6 +23,10 @@ macro_rules! parse_clear {
     (@dyn! $([max = $max_dyn:expr])? $field_type:ident $field_name:ident = MATCH($field_val:expr) ; $($other_fields:tt)* ) => {
         parse_clear!(@ $field_type $field_name ; $($other_fields)*)
     };
+    // Local fields don't clear
+    (@local! $field_type:ident $field_name:ident ; $($other_fields:tt)* ) => {
+        parse_clear!(@ $($other_fields)*);
+    };
     // All the fields just call their own `clear()`
     (@$([[ $loop_index:expr ]])? $field_type:ident $field_name:ident ; $($other_fields:tt)* ) => {{
         let mut __s = String::new();

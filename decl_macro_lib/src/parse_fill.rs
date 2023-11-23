@@ -1,9 +1,13 @@
 #[macro_export] 
 macro_rules! parse_fill { 
     // Create the body of the `fill(..)` method 
+
     // Skip MEMBER declarations
-    
     (@MEMBER( $($x:tt)* ); $($other_fields:tt)* ) => { 
+        parse_fill!(@$($other_fields)*)
+    };
+    // Skip placeholders
+    (@local! $field_type:ident $field_name:ident ; $($other_fields:tt)* ) => {
         parse_fill!(@$($other_fields)*)
     };
     (@for ( $loop_left:tt <= $loop_index:ident < $loop_right:expr ) { $($loop_body:tt)* } $($other_fields:tt)* ) => {{
