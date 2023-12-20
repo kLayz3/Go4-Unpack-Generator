@@ -91,13 +91,14 @@ macro_rules! parse_fields {
     // Non-primitive fields are of the format: name = type(gen_name = gen_val, ...);
     (@$([[ $loop_index:expr ]])? $field_name:ident = $field_type:ident ( $($fgen_name:ident = $fgen_val:expr),* ) ; $($other_fields:tt)* ) => {{
         let mut __s = String::new();
-        __s += &formatt!(1; "{}<", stringify!($field_type));
-        $( __s += &format!("{},", stringify!($fgen_val)); )*
-        __s += &format!("void> {}", stringify!($field_name));
+        let mut fname = stringify!($field_name);
         $( // Add loop index to the name, if it is supplied
-        __s += &format!("_{}", $loop_index);
+        fname += &format!("_{}", $loop_index);
         )?
-        __s += ";\n";
+        __s += &formatt!(1; "auto {}", fname);
+        __s += &format!(" = {}<", stringify!($field_type));
+        $( __s += &format!("{},", stringify!($fgen_val)); )*
+        __s += &format!("void>(this->__self_name + \".\" + {});\n", fname);
         __s += &parse_fields!(@ $([[ $loop_index ]])? $( $other_fields )*);
         __s
     }};
@@ -116,7 +117,7 @@ macro_rules! parse_fields {
 
     // Return at the max depth of recursion
     (@$([[ $loop_index:expr ]])? ) => {{
-        String::new()
+        format!("protected: std::string __self_name = "";\n");
     }};
 
     () => {{
